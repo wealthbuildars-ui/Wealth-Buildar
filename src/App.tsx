@@ -27,6 +27,7 @@ export default function App() {
     campaigns,
     withdrawals,
     adminSettings,
+    savedArticleIds,
     login,
     signup,
     logout,
@@ -34,7 +35,7 @@ export default function App() {
     addFunds,
     toggleSaveArticle,
     addBadge,
-    fileSupportTicket,
+    createSupportTicket: fileSupportTicket,
     requestWithdrawal,
     purchaseProduct,
     registerSeller,
@@ -102,7 +103,7 @@ export default function App() {
       case 1:
         return (
           <Discover 
-            savedArticleIds={currentUser.savedArticleIds} 
+            savedArticleIds={savedArticleIds} 
             toggleSaveArticle={toggleSaveArticle} 
             onNavigateToTab={setActiveTab}
           />

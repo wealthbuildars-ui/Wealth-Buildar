@@ -41,7 +41,10 @@ const SEED_USERS: UserProfile[] = [
     sellerPhoneNumber: "+2349011223344",
     sellerEmailVerified: true,
     sellerVerificationStatus: "Verified",
-    isVerifiedSeller: true
+    isVerifiedSeller: true,
+    lessonStreakCount: 5,
+    totalCommissionEarned: 22500,
+    referrals: []
   },
   {
     uid: "user-doe",
@@ -75,7 +78,10 @@ const SEED_USERS: UserProfile[] = [
     sellerPhoneNumber: "",
     sellerEmailVerified: false,
     sellerVerificationStatus: "Unverified",
-    isVerifiedSeller: false
+    isVerifiedSeller: false,
+    lessonStreakCount: 3,
+    totalCommissionEarned: 4500,
+    referrals: []
   }
 ];
 
@@ -223,7 +229,10 @@ export function useAppStore() {
       sellerPhoneNumber: "",
       sellerEmailVerified: false,
       sellerVerificationStatus: "Unverified",
-      isVerifiedSeller: false
+      isVerifiedSeller: false,
+      lessonStreakCount: 0,
+      totalCommissionEarned: 0,
+      referrals: []
     };
 
     setUsers(prev => [...prev, newUser]);
@@ -267,6 +276,18 @@ export function useAppStore() {
     setCurrentUser(updated);
     setUsers(prev => prev.map(u => u.uid === currentUser.uid ? updated : u));
     logActivity(currentUser.uid, currentUser.email, "Profile Update", `Changed goal to $${goal} and path to ${path}.`);
+  };
+
+  const addFunds = (amount: number) => {
+    if (!currentUser) return;
+    const updated = {
+      ...currentUser,
+      currentSavedBalance: currentUser.currentSavedBalance + amount
+    };
+    setCurrentUser(updated);
+    setUsers(prev => prev.map(u => u.uid === currentUser.uid ? updated : u));
+    logActivity(currentUser.uid, currentUser.email, "Add Funds", `Mock deposited $${amount.toLocaleString()} to saved balance.`);
+    sendNotification(currentUser.uid, "Wallet Funded! 💳", `Successfully deposited $${amount.toLocaleString()} into your account saved balance.`, "payment");
   };
 
   const addBadge = (badge: string) => {
@@ -852,6 +873,7 @@ export function useAppStore() {
     signup,
     logout,
     updateProfile,
+    addFunds,
     addBadge,
     submitVerificationPayment,
     approveUser,

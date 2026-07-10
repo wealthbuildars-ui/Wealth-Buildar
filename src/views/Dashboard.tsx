@@ -39,7 +39,7 @@ export default function Dashboard({
   const [withdrawSuccess, setWithdrawSuccess] = useState('');
 
   const myTickets = tickets.filter(t => t.userId === currentUser.uid);
-  const myWithdrawals = withdrawals.filter(w => w.userId === currentUser.uid && w.walletType === 'Affiliate');
+  const myWithdrawals = withdrawals.filter(w => w.userUid === currentUser.uid && w.walletType === 'Affiliate');
 
   const referralUrl = `${window.location.origin}/register?ref=${currentUser.referralCode}`;
 

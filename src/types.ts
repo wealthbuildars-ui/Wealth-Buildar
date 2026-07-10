@@ -21,6 +21,9 @@ export interface UserProfile {
   referredUsersCount: number;
   referralRewardsEarned: number;
   referralBalance: number;
+  lessonStreakCount: number;
+  totalCommissionEarned: number;
+  referrals: { referredName: string; timestamp: number; commissionAmount: number }[];
   
   // Multi-Vendor Marketplace Seller
   isSeller: boolean;

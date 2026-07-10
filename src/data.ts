@@ -187,7 +187,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     category: "FINANCIAL_EDUCATION",
     question: "Which asset class has historically provided the most consistent long-term returns above inflation?",
     options: ["Physical Gold", "Broad-Market Stock Index Funds", "Cryptocurrency", "Regular Bank Savings Account"],
-    correctAnswerIndex = 1,
+    correctAnswerIndex: 1,
     explanation: "Over the past 100 years, broad-market stock index funds (like the S&P 500) have returned a historical average of 8%-10% per year, consistently outperforming gold and inflation."
   },
   {
@@ -200,7 +200,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
       "Building trust by writing comprehensive, honest reviews based on hands-on testing",
       "Buying paid traffic to direct affiliate links"
     ],
-    correctAnswerIndex = 2,
+    correctAnswerIndex: 2,
     explanation: "Authenticity and user trust are the ultimate metrics in affiliate marketing. Honest reviews based on real testing convert significantly better and build long-term reader loyalty."
   },
   {
@@ -213,7 +213,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
       "Working 90 hours a week on Fiverr",
       "Changing your profile name to sound more corporate"
     ],
-    correctAnswerIndex = 1,
+    correctAnswerIndex: 1,
     explanation: "Specializing in a high-value business-impacting skill (e.g., copywriting for SaaS) and pitching companies directly removes you from platform fee cuts and intense price competition."
   },
   {
@@ -226,7 +226,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
       "A high-quality, free value asset given to readers in exchange for their email address",
       "An online advertisement that forces people to buy instantly"
     ],
-    correctAnswerIndex = 2,
+    correctAnswerIndex: 2,
     explanation: "A Lead Magnet (like a free checklist or guide) builds email subscribers, allowing you to nurture relationships and pitch your main digital product via an automated email funnel."
   },
   {
@@ -239,7 +239,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
       "Because younger investors receive better tax breaks",
       "Because of stock splits"
     ],
-    correctAnswerIndex = 1,
+    correctAnswerIndex: 1,
     explanation: "Time is the absolute multiplier of compound interest. A 10-year head start gives compounding interest an extra decade to double and grow exponentially, making a colossal difference."
   }
 ];

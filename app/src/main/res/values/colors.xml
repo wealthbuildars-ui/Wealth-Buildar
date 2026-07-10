@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#10b981</color> <!-- Emerald Green -->
+    <color name="colorPrimaryDark">#059669</color>
+    <color name="colorAccent">#f59e0b</color> <!-- Amber Gold -->
+    <color name="colorBackground">#020617</color> <!-- Dark Slate -->
+    <color name="colorCard">#0f172a</color>
+    <color name="colorText">#f8fafc</color>
+    <color name="colorTextSecondary">#94a3b8</color>
+    <color name="colorBorder">#1e293b</color>
+</resources>
