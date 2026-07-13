@@ -35,11 +35,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
 }
 
@@ -54,7 +54,7 @@ dependencies {
 // Automatically build Vite app and copy static assets into the Android assets folder during pre-build
 val buildWebAssets = tasks.register<Exec>("buildWebAssets") {
     workingDir = file("${project.rootDir}")
-    if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+    if (System.getProperty("os.name").lowercase(java.util.Locale.ROOT).contains("windows")) {
         commandLine("cmd", "/c", "npm run build")
     } else {
         commandLine("npm", "run", "build")
