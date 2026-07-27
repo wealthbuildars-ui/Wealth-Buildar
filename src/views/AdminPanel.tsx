@@ -209,8 +209,8 @@ export default function AdminPanel({
                     <span className="text-slate-600">•</span>
                     <span className="text-slate-500">Method: {w.payoutMethod}</span>
                   </div>
-                  <p className="font-bold text-slate-200 text-sm">Requested: <strong className="text-emerald-400 text-base">${w.amount}</strong></p>
-                  <p className="text-xs text-slate-400">Claimant: {w.userEmail} • Payout Destination: <strong className="text-slate-200">{w.payoutDetails}</strong></p>
+                  <p className="font-bold text-slate-200 text-sm">Requested Amount: <strong className="text-emerald-400 text-base">₦{w.amount.toLocaleString()}</strong></p>
+                  <p className="text-xs text-slate-400">Claimant: {w.userEmail} • Receiving Account: <strong className="text-slate-100">{w.payoutDetails}</strong></p>
                 </div>
 
                 <div className="shrink-0">
@@ -218,18 +218,18 @@ export default function AdminPanel({
                     <div className="flex gap-2">
                       <input 
                         type="text" value={wdrNotes} onChange={e => setWdrNotes(e.target.value)}
-                        placeholder="Admin payout notes or Tx hash..."
+                        placeholder="Admin notes / OPay transfer Ref..."
                         className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none"
                       />
                       <button 
                         onClick={() => { processWithdrawal(w.id, true, wdrNotes); setProcessingWdr(null); setWdrNotes(''); }}
-                        className="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-xl text-xs hover:bg-emerald-500"
+                        className="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-xl text-xs hover:bg-emerald-500 cursor-pointer"
                       >
-                        Confirm Dispatch
+                        Confirm & Deduct
                       </button>
                       <button 
                         onClick={() => { processWithdrawal(w.id, false, wdrNotes); setProcessingWdr(null); setWdrNotes(''); }}
-                        className="px-3 py-1.5 bg-rose-600 text-white font-bold rounded-xl text-xs hover:bg-rose-500"
+                        className="px-3 py-1.5 bg-rose-600 text-white font-bold rounded-xl text-xs hover:bg-rose-500 cursor-pointer"
                       >
                         Reject
                       </button>

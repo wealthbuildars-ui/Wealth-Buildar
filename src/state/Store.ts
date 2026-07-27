@@ -6,6 +6,9 @@ import {
   NotificationItem, ActivityLog, TicketMessage, Coupon, LeaderboardEntry
 } from '../types';
 import { ARTICLES, QUIZ_QUESTIONS, DEFAULT_PRODUCTS, DEFAULT_ADMIN_SETTINGS } from '../data';
+import { 
+  db, auth, doc, setDoc, getDoc, updateDoc, collection, onSnapshot, addDoc, deleteDoc
+} from '../firebase';
 
 // Seeds
 const SEED_USERS: UserProfile[] = [
@@ -89,7 +92,7 @@ const SEED_ANNOUNCEMENTS: Announcement[] = [
   {
     id: "ann_01",
     title: "Welcome to Wealth Builder Web! 🎉",
-    content: "We are thrilled to launch our brand new web platform. You can now build, test, and master digital income engines from any device! Explore your custom trackers and the newly unlocked Multi-Vendor Marketplace.",
+    content: "We are thrilled to launch our brand new web platform connected live to Firebase! You can now build, test, and master digital income engines with real-time cloud data sync across devices.",
     timestamp: Date.now() - 3 * 24 * 60 * 60 * 1000,
     isPinned: true,
     author: "System Admin"
@@ -104,7 +107,7 @@ const SEED_ANNOUNCEMENTS: Announcement[] = [
   }
 ];
 
-// Load helper
+// Local storage fallback helpers
 function getStorage<T>(key: string, defaultValue: T): T {
   const data = localStorage.getItem(key);
   if (!data) return defaultValue;
@@ -134,7 +137,103 @@ export function useAppStore() {
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => getStorage('wb_notifications', []));
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => getStorage('wb_activity_logs', []));
 
-  // Sync to localStorage
+  // Firebase Realtime Subscriptions & Seed Initialization
+  useEffect(() => {
+    // 1. Users Subscription
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      if (snapshot.empty) {
+        // Seed Firestore users
+        SEED_USERS.forEach((u) => setDoc(doc(db, 'users', u.uid), u));
+      } else {
+        const loadedUsers: UserProfile[] = snapshot.docs.map(d => d.data() as UserProfile);
+        setUsers(loadedUsers);
+        // Keep current user in sync
+        if (currentUser) {
+          const updatedCurrent = loadedUsers.find(u => u.uid === currentUser.uid);
+          if (updatedCurrent) setCurrentUser(updatedCurrent);
+        }
+      }
+    }, (err) => console.error("Firestore users sync error:", err));
+
+    // 2. Announcements Subscription
+    const unsubAnnouncements = onSnapshot(collection(db, 'announcements'), (snapshot) => {
+      if (snapshot.empty) {
+        SEED_ANNOUNCEMENTS.forEach((a) => setDoc(doc(db, 'announcements', a.id), a));
+      } else {
+        const loaded: Announcement[] = snapshot.docs.map(d => d.data() as Announcement);
+        setAnnouncements(loaded.sort((a, b) => b.timestamp - a.timestamp));
+      }
+    }, (err) => console.error("Firestore announcements sync error:", err));
+
+    // 3. Products Subscription
+    const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
+      if (snapshot.empty) {
+        DEFAULT_PRODUCTS.forEach((p) => setDoc(doc(db, 'products', p.id), p));
+      } else {
+        setProducts(snapshot.docs.map(d => d.data() as AffiliateProduct));
+      }
+    }, (err) => console.error("Firestore products sync error:", err));
+
+    // 4. Tickets Subscription
+    const unsubTickets = onSnapshot(collection(db, 'tickets'), (snapshot) => {
+      setTickets(snapshot.docs.map(d => d.data() as SupportTicket).sort((a, b) => b.lastUpdated - a.lastUpdated));
+    }, (err) => console.error("Firestore tickets sync error:", err));
+
+    // 5. Campaigns Subscription
+    const unsubCampaigns = onSnapshot(collection(db, 'campaigns'), (snapshot) => {
+      setCampaigns(snapshot.docs.map(d => d.data() as AdCampaign).sort((a, b) => b.dateCreated - a.dateCreated));
+    }, (err) => console.error("Firestore campaigns sync error:", err));
+
+    // 6. Sales Subscription
+    const unsubSales = onSnapshot(collection(db, 'sales'), (snapshot) => {
+      setSales(snapshot.docs.map(d => d.data() as ProductReferralSale).sort((a, b) => b.dateSubmitted - a.dateSubmitted));
+    }, (err) => console.error("Firestore sales sync error:", err));
+
+    // 7. Orders Subscription
+    const unsubOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
+      setOrders(snapshot.docs.map(d => d.data() as Order).sort((a, b) => b.dateCreated - a.dateCreated));
+    }, (err) => console.error("Firestore orders sync error:", err));
+
+    // 8. Withdrawals Subscription
+    const unsubWithdrawals = onSnapshot(collection(db, 'withdrawals'), (snapshot) => {
+      setWithdrawals(snapshot.docs.map(d => d.data() as WithdrawalRequest).sort((a, b) => b.dateSubmitted - a.dateSubmitted));
+    }, (err) => console.error("Firestore withdrawals sync error:", err));
+
+    // 9. Admin Settings Subscription
+    const unsubSettings = onSnapshot(doc(db, 'adminSettings', 'global'), (docSnap) => {
+      if (!docSnap.exists()) {
+        setDoc(doc(db, 'adminSettings', 'global'), DEFAULT_ADMIN_SETTINGS);
+      } else {
+        setAdminSettings(docSnap.data() as AdminSettings);
+      }
+    }, (err) => console.error("Firestore settings sync error:", err));
+
+    // 10. Notifications Subscription
+    const unsubNotifs = onSnapshot(collection(db, 'notifications'), (snapshot) => {
+      setNotifications(snapshot.docs.map(d => d.data() as NotificationItem).sort((a, b) => b.timestamp - a.timestamp));
+    }, (err) => console.error("Firestore notifications sync error:", err));
+
+    // 11. Activity Logs Subscription
+    const unsubLogs = onSnapshot(collection(db, 'activityLogs'), (snapshot) => {
+      setActivityLogs(snapshot.docs.map(d => d.data() as ActivityLog).sort((a, b) => b.timestamp - a.timestamp));
+    }, (err) => console.error("Firestore logs sync error:", err));
+
+    return () => {
+      unsubUsers();
+      unsubAnnouncements();
+      unsubProducts();
+      unsubTickets();
+      unsubCampaigns();
+      unsubSales();
+      unsubOrders();
+      unsubWithdrawals();
+      unsubSettings();
+      unsubNotifs();
+      unsubLogs();
+    };
+  }, []);
+
+  // Sync current user & local storage
   useEffect(() => { setStorage('wb_current_user', currentUser); }, [currentUser]);
   useEffect(() => { setStorage('wb_users', users); }, [users]);
   useEffect(() => { setStorage('wb_announcements', announcements); }, [announcements]);
@@ -151,8 +250,9 @@ export function useAppStore() {
 
   // Activity logger
   const logActivity = (userId: string, email: string, action: string, details: string) => {
+    const id = "log_" + Math.random().toString(36).substring(2);
     const newLog: ActivityLog = {
-      id: "log_" + Math.random().toString(36).substring(2),
+      id,
       userId,
       userEmail: email,
       action,
@@ -160,12 +260,14 @@ export function useAppStore() {
       timestamp: Date.now()
     };
     setActivityLogs(prev => [newLog, ...prev]);
+    setDoc(doc(db, 'activityLogs', id), newLog).catch(e => console.error("Firestore log error:", e));
   };
 
   // Notification generator
   const sendNotification = (userId: string, title: string, message: string, type: 'approval' | 'rejection' | 'payment' | 'announcement' | 'info') => {
+    const id = "notif_" + Math.random().toString(36).substring(2);
     const newNotif: NotificationItem = {
-      id: "notif_" + Math.random().toString(36).substring(2),
+      id,
       userId,
       title,
       message,
@@ -174,13 +276,19 @@ export function useAppStore() {
       type
     };
     setNotifications(prev => [newNotif, ...prev]);
+    setDoc(doc(db, 'notifications', id), newNotif).catch(e => console.error("Firestore notif error:", e));
   };
 
   // Auth Operations
-  const login = (email: string): { success: boolean; message: string } => {
+  const login = (email: string, password?: string): { success: boolean; message: string } => {
     const clean = email.toLowerCase().trim();
     const found = users.find(u => u.email.toLowerCase() === clean);
     if (found) {
+      if (found.isAdmin || clean === "wealthbuilder@gmail.com" || clean === "chizaramamajorchizaram@gmail.com") {
+        if (!password || password.trim() !== "Chizzywealth1906") {
+          return { success: false, message: "Incorrect admin password. Required password: Chizzywealth1906" };
+        }
+      }
       setCurrentUser(found);
       logActivity(found.uid, found.email, "Login", "Successfully signed into dashboard.");
       return { success: true, message: `Welcome back, ${found.displayName}!` };
@@ -194,11 +302,12 @@ export function useAppStore() {
       return { success: false, message: "Email is already registered. Please login." };
     }
 
+    const uid = "usr_" + Math.random().toString(36).substring(2);
     const referralCode = name.toUpperCase().replace(/\s+/g, '').substring(0, 8) + Math.floor(10 + Math.random() * 90);
     const isAdm = cleanEmail === "wealthbuilder@gmail.com" || cleanEmail === "chizaramamajorchizaram@gmail.com";
 
     const newUser: UserProfile = {
-      uid: "usr_" + Math.random().toString(36).substring(2),
+      uid,
       email: cleanEmail,
       displayName: name,
       monthlyGoal: 5000,
@@ -237,27 +346,28 @@ export function useAppStore() {
 
     setUsers(prev => [...prev, newUser]);
     setCurrentUser(newUser);
+    setDoc(doc(db, 'users', uid), newUser).catch(e => console.error("Firestore user signup error:", e));
+
     logActivity(newUser.uid, newUser.email, "Registration", "Registered a new account.");
     sendNotification(newUser.uid, "Welcome Pioneer! 🌟", "Verify your account payment to unlock active earning pathways.", "info");
 
     // Track referral clicks/count for the referrer immediately if supplied
     if (referredBy.trim()) {
-      setUsers(currentUsers => currentUsers.map(u => {
+      users.forEach(u => {
         if (u.referralCode.toUpperCase() === referredBy.trim().toUpperCase()) {
           const clicks = u.referralLinkClicks + 1;
           const refCount = u.referredUsersCount + 1;
           
-          // Generate notification for referrer
           sendNotification(u.uid, "New Referral Invited!", `${name} registered using your referral code. Commission will grant upon account verification!`, "info");
           
-          return {
+          const updatedReferrer = {
             ...u,
             referralLinkClicks: clicks,
             referredUsersCount: refCount
           };
+          setDoc(doc(db, 'users', u.uid), updatedReferrer).catch(e => console.error("Firestore referrer update error:", e));
         }
-        return u;
-      }));
+      });
     }
 
     return { success: true, message: "Account created successfully!" };
@@ -275,6 +385,7 @@ export function useAppStore() {
     const updated = { ...currentUser, displayName: name, monthlyGoal: goal, selectedPath: path };
     setCurrentUser(updated);
     setUsers(prev => prev.map(u => u.uid === currentUser.uid ? updated : u));
+    setDoc(doc(db, 'users', currentUser.uid), updated).catch(e => console.error("Firestore profile update error:", e));
     logActivity(currentUser.uid, currentUser.email, "Profile Update", `Changed goal to $${goal} and path to ${path}.`);
   };
 
@@ -286,7 +397,8 @@ export function useAppStore() {
     };
     setCurrentUser(updated);
     setUsers(prev => prev.map(u => u.uid === currentUser.uid ? updated : u));
-    logActivity(currentUser.uid, currentUser.email, "Add Funds", `Mock deposited $${amount.toLocaleString()} to saved balance.`);
+    setDoc(doc(db, 'users', currentUser.uid), updated).catch(e => console.error("Firestore add funds error:", e));
+    logActivity(currentUser.uid, currentUser.email, "Add Funds", `Deposited $${amount.toLocaleString()} to saved balance.`);
     sendNotification(currentUser.uid, "Wallet Funded! 💳", `Successfully deposited $${amount.toLocaleString()} into your account saved balance.`, "payment");
   };
 
@@ -296,6 +408,7 @@ export function useAppStore() {
     const updated = { ...currentUser, badges: [...currentUser.badges, badge] };
     setCurrentUser(updated);
     setUsers(prev => prev.map(u => u.uid === currentUser.uid ? updated : u));
+    setDoc(doc(db, 'users', currentUser.uid), updated).catch(e => console.error("Firestore badge error:", e));
     sendNotification(currentUser.uid, "New Badge Unlocked! 🏆", `You earned the '${badge}' badge for your accomplishments.`, "info");
     logActivity(currentUser.uid, currentUser.email, "Badge Award", `Unlocked the '${badge}' badge.`);
   };
@@ -312,6 +425,7 @@ export function useAppStore() {
     };
     setCurrentUser(updated);
     setUsers(prev => prev.map(u => u.uid === currentUser.uid ? updated : u));
+    setDoc(doc(db, 'users', currentUser.uid), updated).catch(e => console.error("Firestore payment proof error:", e));
     logActivity(currentUser.uid, currentUser.email, "Payment Upload", `Submitted verification receipt: ${proofName}`);
     sendNotification(currentUser.uid, "Verification Pending ⏳", "Our finance team is auditing your receipt. Verification completes shortly.", "payment");
   };
@@ -330,12 +444,13 @@ export function useAppStore() {
     };
 
     setUsers(prev => prev.map(u => u.uid === uid ? updated : u));
+    setDoc(doc(db, 'users', uid), updated).catch(e => console.error("Firestore approve user error:", e));
     sendNotification(uid, "Account Activated! 🎉", "Your verification payment was approved. Welcome to full active earning privileges!", "approval");
     logActivity("admin", "Admin", "User Approval", `Approved verification for ${userToApprove.email}`);
 
     // Grant commission reward to referrer if applicable
     if (userToApprove.referredByCode) {
-      setUsers(currentUsers => currentUsers.map(u => {
+      users.forEach(u => {
         if (u.referralCode.toUpperCase() === userToApprove.referredByCode.toUpperCase()) {
           const rewardAmount = adminSettings.referralRewardAmount;
           const updatedBal = u.referralBalance + rewardAmount;
@@ -343,14 +458,14 @@ export function useAppStore() {
           
           sendNotification(u.uid, "Referral Bonus Received! 💰", `Earned $${rewardAmount} commission because ${userToApprove.displayName} activated their account!`, "payment");
           
-          return {
+          const updatedReferrer = {
             ...u,
             referralBalance: updatedBal,
             referralRewardsEarned: updatedTotalEarned
           };
+          setDoc(doc(db, 'users', u.uid), updatedReferrer).catch(e => console.error("Firestore grant commission error:", e));
         }
-        return u;
-      }));
+      });
     }
 
     if (currentUser?.uid === uid) {
@@ -369,6 +484,7 @@ export function useAppStore() {
     };
 
     setUsers(prev => prev.map(u => u.uid === uid ? updated : u));
+    setDoc(doc(db, 'users', uid), updated).catch(e => console.error("Firestore reject user error:", e));
     sendNotification(uid, "Verification Rejected ❌", `Your receipt was rejected: ${reason}. Please upload valid transaction proof.`, "rejection");
     logActivity("admin", "Admin", "User Rejection", `Rejected verification for ${target.email}. Reason: ${reason}`);
 
@@ -381,16 +497,16 @@ export function useAppStore() {
   const toggleSaveArticle = (articleId: string) => {
     setSavedArticleIds(prev => {
       const isSaved = prev.includes(articleId);
-      const next = isSaved ? prev.filter(id => id !== articleId) : [...prev, articleId];
-      return next;
+      return isSaved ? prev.filter(id => id !== articleId) : [...prev, articleId];
     });
   };
 
   // Support Tickets
   const createSupportTicket = (subject: string, desc: string) => {
     if (!currentUser) return;
+    const id = "tkt_" + Math.random().toString(36).substring(2);
     const newTicket: SupportTicket = {
-      id: "tkt_" + Math.random().toString(36).substring(2),
+      id,
       userId: currentUser.uid,
       userEmail: currentUser.email,
       userName: currentUser.displayName,
@@ -408,44 +524,60 @@ export function useAppStore() {
       }]
     };
     setTickets(prev => [newTicket, ...prev]);
+    setDoc(doc(db, 'tickets', id), newTicket).catch(e => console.error("Firestore create ticket error:", e));
     logActivity(currentUser.uid, currentUser.email, "Support Ticket", `Created support ticket: "${subject}"`);
     sendNotification(currentUser.uid, "Ticket Opened 📩", "An expert financial advisor will review and respond shortly.", "info");
   };
 
   const replyToTicket = (ticketId: string, text: string, senderUid: string, senderName: string) => {
-    setTickets(prev => prev.map(t => {
-      if (t.id === ticketId) {
-        const newMsg: TicketMessage = {
-          id: "msg_" + Math.random().toString(36).substring(2),
-          senderUid,
-          senderName,
-          message: text,
-          timestamp: Date.now()
-        };
-        const updatedMsgs = [...t.messages, newMsg];
-        const isAdm = senderUid === "admin-uid" || users.find(u => u.uid === senderUid)?.isAdmin;
-        return {
-          ...t,
-          messages: updatedMsgs,
-          status: isAdm ? "Replied" as const : "Open" as const,
-          lastUpdated: Date.now()
-        };
-      }
-      return t;
-    }));
+    const target = tickets.find(t => t.id === ticketId);
+    if (!target) return;
+
+    const newMsg: TicketMessage = {
+      id: "msg_" + Math.random().toString(36).substring(2),
+      senderUid,
+      senderName,
+      message: text,
+      timestamp: Date.now()
+    };
+    const updatedMsgs = [...target.messages, newMsg];
+    const isAdm = senderUid === "admin-uid" || users.find(u => u.uid === senderUid)?.isAdmin;
+    const updatedTicket: SupportTicket = {
+      ...target,
+      messages: updatedMsgs,
+      status: isAdm ? "Replied" : "Open",
+      lastUpdated: Date.now()
+    };
+
+    setTickets(prev => prev.map(t => t.id === ticketId ? updatedTicket : t));
+    setDoc(doc(db, 'tickets', ticketId), updatedTicket).catch(e => console.error("Firestore reply ticket error:", e));
   };
 
   // Withdrawal operations
   const requestWithdrawal = (amount: number, method: string, details: string, walletType: 'Affiliate' | 'Seller'): { success: boolean; message: string } => {
     if (!currentUser) return { success: false, message: "Unauthorized" };
+    if (amount <= 0) return { success: false, message: "Specify a valid payout amount." };
+    if (!details.trim()) return { success: false, message: "Please provide your account details for withdrawal." };
     
     const balance = walletType === 'Affiliate' ? currentUser.referralBalance : currentUser.sellerBalance;
-    if (amount > balance) {
-      return { success: false, message: `Insufficient funds in your ${walletType} wallet!` };
+    
+    // Calculate pending withdrawals already filed by this user for this wallet
+    const pendingSum = withdrawals
+      .filter(w => w.userUid === currentUser.uid && w.walletType === walletType && w.status === "Pending Approval")
+      .reduce((sum, w) => sum + w.amount, 0);
+
+    const availableBalance = balance - pendingSum;
+
+    if (amount > availableBalance) {
+      return { 
+        success: false, 
+        message: `Cannot request more than your available balance! Your current wallet balance is ₦${balance.toLocaleString()} (Pending requests: ₦${pendingSum.toLocaleString()}).` 
+      };
     }
 
+    const id = "wdr_" + Math.random().toString(36).substring(2);
     const newRequest: WithdrawalRequest = {
-      id: "wdr_" + Math.random().toString(36).substring(2),
+      id,
       userUid: currentUser.uid,
       userEmail: currentUser.email,
       amount,
@@ -459,64 +591,76 @@ export function useAppStore() {
       adminNotes: ""
     };
 
-    // Deduct from local user state
-    const updatedUser = {
-      ...currentUser,
-      referralBalance: walletType === 'Affiliate' ? currentUser.referralBalance - amount : currentUser.referralBalance,
-      sellerBalance: walletType === 'Seller' ? currentUser.sellerBalance - amount : currentUser.sellerBalance
-    };
-
-    setCurrentUser(updatedUser);
-    setUsers(prev => prev.map(u => u.uid === currentUser.uid ? updatedUser : u));
+    // Note: Do NOT deduct balance here! Balance is deducted ONLY when Admin confirms/approves the withdrawal.
     setWithdrawals(prev => [newRequest, ...prev]);
+    setDoc(doc(db, 'withdrawals', id), newRequest).catch(e => console.error("Firestore withdrawal request error:", e));
 
-    logActivity(currentUser.uid, currentUser.email, "Withdrawal Request", `Requested withdrawal of $${amount} via ${method}`);
-    sendNotification(currentUser.uid, "Withdrawal Submitted 💸", `Payout request for $${amount} is processing.`, "payment");
+    logActivity(currentUser.uid, currentUser.email, "Withdrawal Request", `Requested withdrawal of ₦${amount.toLocaleString()} to ${details}`);
+    sendNotification(currentUser.uid, "Withdrawal Submitted 💸", `Your withdrawal request of ₦${amount.toLocaleString()} was submitted. Awaiting Admin confirmation.`, "payment");
 
-    return { success: true, message: `Withdrawal request for $${amount} submitted!` };
+    return { success: true, message: `Withdrawal request for ₦${amount.toLocaleString()} submitted successfully! Admin will confirm and dispatch.` };
   };
 
   const processWithdrawal = (id: string, approve: boolean, notes: string = "") => {
     const request = withdrawals.find(w => w.id === id);
     if (!request) return;
 
-    const hash = approve ? "0x" + Math.random().toString(16).substring(2, 10) + "txhash" : "";
-    const updatedWithdrawals = withdrawals.map(w => {
-      if (w.id === id) {
-        return {
-          ...w,
-          status: approve ? ("Paid" as const) : ("Rejected" as const),
-          completionDate: approve ? Date.now() : 0,
-          transactionHash: hash,
-          adminNotes: notes
-        };
+    if (approve) {
+      // Find the user to confirm balance and deduct funds upon Admin approval
+      const userToDeduct = users.find(u => u.uid === request.userUid);
+      if (!userToDeduct) {
+        alert("User account not found!");
+        return;
       }
-      return w;
-    });
 
-    setWithdrawals(updatedWithdrawals);
-
-    // If rejected, refund the user
-    if (!approve) {
-      const userToRefund = users.find(u => u.uid === request.userUid);
-      if (userToRefund) {
-        const refunded: UserProfile = {
-          ...userToRefund,
-          referralBalance: request.walletType === 'Affiliate' ? userToRefund.referralBalance + request.amount : userToRefund.referralBalance,
-          sellerBalance: request.walletType === 'Seller' ? userToRefund.sellerBalance + request.amount : userToRefund.sellerBalance
-        };
-        setUsers(prev => prev.map(u => u.uid === request.userUid ? refunded : u));
-        sendNotification(request.userUid, "Withdrawal Rejected ❌", `Withdrawal of $${request.amount} was rejected: ${notes}. Funds refunded.`, "payment");
-        
-        if (currentUser?.uid === request.userUid) {
-          setCurrentUser(refunded);
-        }
+      const currentBalance = request.walletType === 'Affiliate' ? userToDeduct.referralBalance : userToDeduct.sellerBalance;
+      if (currentBalance < request.amount) {
+        alert(`Cannot confirm withdrawal: User only has ₦${currentBalance.toLocaleString()} in ${request.walletType} balance, but requested ₦${request.amount.toLocaleString()}.`);
+        return;
       }
+
+      // Deduct balance now upon Admin confirmation
+      const updatedUser: UserProfile = {
+        ...userToDeduct,
+        referralBalance: request.walletType === 'Affiliate' ? userToDeduct.referralBalance - request.amount : userToDeduct.referralBalance,
+        sellerBalance: request.walletType === 'Seller' ? userToDeduct.sellerBalance - request.amount : userToDeduct.sellerBalance
+      };
+
+      setUsers(prev => prev.map(u => u.uid === request.userUid ? updatedUser : u));
+      setDoc(doc(db, 'users', request.userUid), updatedUser).catch(e => console.error("Firestore balance deduction error:", e));
+
+      if (currentUser?.uid === request.userUid) {
+        setCurrentUser(updatedUser);
+      }
+
+      const txRef = "OPAY-" + Math.random().toString(36).substring(2, 10).toUpperCase();
+      const updatedReq: WithdrawalRequest = {
+        ...request,
+        status: "Paid",
+        completionDate: Date.now(),
+        transactionHash: txRef,
+        adminNotes: notes || "Confirmed & Dispatched by Admin"
+      };
+
+      setWithdrawals(prev => prev.map(w => w.id === id ? updatedReq : w));
+      setDoc(doc(db, 'withdrawals', id), updatedReq).catch(e => console.error("Firestore process withdrawal error:", e));
+
+      sendNotification(request.userUid, "Withdrawal Confirmed & Paid! 💸", `Admin confirmed your withdrawal of ₦${request.amount.toLocaleString()} sent to ${request.payoutDetails}. Ref: ${txRef}`, "payment");
+      logActivity("admin", "Admin", "Withdrawal Approved", `Confirmed and deducted ₦${request.amount.toLocaleString()} for user ${request.userEmail}`);
     } else {
-      sendNotification(request.userUid, "Withdrawal Paid! 💸", `Your payout of $${request.amount} was processed. Tx Hash: ${hash}`, "payment");
-    }
+      // Admin rejects - no balance deduction occurred
+      const updatedReq: WithdrawalRequest = {
+        ...request,
+        status: "Rejected",
+        adminNotes: notes || "Declined by Admin"
+      };
 
-    logActivity("admin", "Admin", "Withdrawal processing", `${approve ? "Approved" : "Rejected"} payout request ${id}`);
+      setWithdrawals(prev => prev.map(w => w.id === id ? updatedReq : w));
+      setDoc(doc(db, 'withdrawals', id), updatedReq).catch(e => console.error("Firestore process withdrawal error:", e));
+
+      sendNotification(request.userUid, "Withdrawal Declined ❌", `Your withdrawal request of ₦${request.amount.toLocaleString()} was declined: ${notes || "Check account details and re-submit."}`, "payment");
+      logActivity("admin", "Admin", "Withdrawal Rejected", `Declined withdrawal claim ${id} for user ${request.userEmail}`);
+    }
   };
 
   // Become a Seller
@@ -529,12 +673,13 @@ export function useAppStore() {
       sellerPhoneNumber: phone,
       sellerNationalId: nationalId,
       sellerBusinessRegistration: bizReg,
-      sellerVerificationStatus: "Verified", // auto approved for instant demo experience
+      sellerVerificationStatus: "Verified",
       isVerifiedSeller: true,
       sellerStatus: "Approved"
     };
     setCurrentUser(updated);
     setUsers(prev => prev.map(u => u.uid === currentUser.uid ? updated : u));
+    setDoc(doc(db, 'users', currentUser.uid), updated).catch(e => console.error("Firestore register seller error:", e));
     logActivity(currentUser.uid, currentUser.email, "Seller Registration", `Registered store: "${businessName}"`);
     sendNotification(currentUser.uid, "Merchant Store Activated 🏬", "Your seller panel is live. You can now post and manage items in the Multi-Vendor Marketplace.", "info");
     addBadge("SuperSeller");
@@ -546,8 +691,9 @@ export function useAppStore() {
     specs: Record<string, string>, deliveryFee: number, img: string = ""
   ) => {
     if (!currentUser) return;
+    const id = "prod_" + Math.random().toString(36).substring(2);
     const newProduct: AffiliateProduct = {
-      id: "prod_" + Math.random().toString(36).substring(2),
+      id,
       name,
       description: desc,
       category: cat,
@@ -557,7 +703,7 @@ export function useAppStore() {
       price,
       discountPrice: null,
       currency: "USD",
-      affiliateLink: "", // sold directly inside the app!
+      affiliateLink: "",
       merchantName: currentUser.sellerBusinessName || currentUser.displayName,
       stockStatus: "In Stock",
       rating: 5.0,
@@ -572,7 +718,7 @@ export function useAppStore() {
       partnerId: "",
       tags: [cat, "Direct Sell"],
       commissionPercent: adminSettings.affiliateRevenuePercent,
-      status: "Approved", // auto approved
+      status: "Approved",
       sellerId: currentUser.uid,
       sellerName: currentUser.sellerBusinessName || currentUser.displayName,
       rejectionReason: "",
@@ -583,6 +729,7 @@ export function useAppStore() {
     };
 
     setProducts(prev => [newProduct, ...prev]);
+    setDoc(doc(db, 'products', id), newProduct).catch(e => console.error("Firestore add product error:", e));
     logActivity(currentUser.uid, currentUser.email, "Product Upload", `Uploaded digital product: "${name}"`);
     sendNotification(currentUser.uid, "Product Live! 🛍️", `"${name}" is active for sale in the Marketplace.`, "info");
   };
@@ -604,7 +751,6 @@ export function useAppStore() {
     const origPrice = product.price * qty;
     let discount = 0;
 
-    // Apply coupon
     if (couponCode.toUpperCase() === "WEALTH5" && adminSettings.isCustomerDiscountEnabled) {
       discount = origPrice * (adminSettings.customerDiscountPercent / 100);
     }
@@ -625,10 +771,12 @@ export function useAppStore() {
 
     setCurrentUser(updatedUser);
     setUsers(prev => prev.map(u => u.uid === currentUser.uid ? updatedUser : u));
+    setDoc(doc(db, 'users', currentUser.uid), updatedUser).catch(e => console.error("Firestore purchase user update error:", e));
 
     // Create Order
+    const orderId = "ord_" + Math.random().toString(36).substring(2);
     const newOrder: Order = {
-      id: "ord_" + Math.random().toString(36).substring(2),
+      id: orderId,
       buyerId: currentUser.uid,
       buyerName: currentUser.displayName,
       buyerEmail: currentUser.email,
@@ -639,7 +787,7 @@ export function useAppStore() {
       originalPrice: origPrice,
       discountAmount: discount,
       finalPayableAmount: finalCost,
-      affiliateId: currentUser.referredByCode, // affiliate gets credit if referred
+      affiliateId: currentUser.referredByCode,
       sellerId: product.sellerId,
       status: "Processing",
       dateCreated: Date.now(),
@@ -649,38 +797,36 @@ export function useAppStore() {
       couponCode,
       deliveryFee: product.deliveryFee * qty,
       paymentProofUrl: "",
-      paymentReference: "Paid via Local Balance",
+      paymentReference: "Paid via Account Balance",
       adminNotes: ""
     };
 
     setOrders(prev => [newOrder, ...prev]);
+    setDoc(doc(db, 'orders', orderId), newOrder).catch(e => console.error("Firestore new order error:", e));
 
     // Update Product Stock
-    setProducts(prev => prev.map(p => {
-      if (p.id === productId) {
-        const nextQty = p.availableQuantity - qty;
-        return {
-          ...p,
-          availableQuantity: nextQty,
-          stockStatus: nextQty === 0 ? "Out of Stock" : nextQty < 5 ? "Low Stock" : "In Stock"
-        };
-      }
-      return p;
-    }));
+    const nextQty = product.availableQuantity - qty;
+    const updatedProduct: AffiliateProduct = {
+      ...product,
+      availableQuantity: nextQty,
+      stockStatus: nextQty === 0 ? "Out of Stock" : nextQty < 5 ? "Low Stock" : "In Stock"
+    };
+    setProducts(prev => prev.map(p => p.id === productId ? updatedProduct : p));
+    setDoc(doc(db, 'products', productId), updatedProduct).catch(e => console.error("Firestore stock update error:", e));
 
-    // Distribute Revenue Share to Seller if applicable
+    // Revenue Share to Seller
     if (product.sellerId) {
       const sellerPay = finalCost * (adminSettings.sellerRevenuePercent / 100);
-      setUsers(currentUsers => currentUsers.map(u => {
+      users.forEach(u => {
         if (u.uid === product.sellerId) {
-          return {
+          const updatedSeller = {
             ...u,
             sellerBalance: u.sellerBalance + sellerPay,
             sellerTotalSales: u.sellerTotalSales + finalCost
           };
+          setDoc(doc(db, 'users', product.sellerId), updatedSeller).catch(e => console.error("Firestore seller credit error:", e));
         }
-        return u;
-      }));
+      });
       sendNotification(product.sellerId, "Product Sold! 📈", `Congratulations! "${product.name}" was purchased. $${sellerPay.toFixed(2)} credited to your seller wallet.`, "payment");
     }
 
@@ -691,15 +837,16 @@ export function useAppStore() {
     return { success: true, message: "Purchase completed successfully!" };
   };
 
-  // Submit Affiliate Product referral claim (Manual Submission in Member Screen)
+  // Submit Affiliate Product referral claim
   const submitProductReferralSale = (
     productId: string, productName: string, productPrice: number, 
     buyerName: string, buyerEmail: string, ref: string
   ) => {
     if (!currentUser) return;
+    const id = "sale_" + Math.random().toString(36).substring(2);
     const commEarned = productPrice * (adminSettings.affiliateRevenuePercent / 100);
     const newSale: ProductReferralSale = {
-      id: "sale_" + Math.random().toString(36).substring(2),
+      id,
       referrerUid: currentUser.uid,
       referrerEmail: currentUser.email,
       productId,
@@ -716,6 +863,7 @@ export function useAppStore() {
     };
 
     setSales(prev => [newSale, ...prev]);
+    setDoc(doc(db, 'sales', id), newSale).catch(e => console.error("Firestore sale claim error:", e));
     logActivity(currentUser.uid, currentUser.email, "Affiliate Claim", `Submitted referral sale claim for "${productName}"`);
     sendNotification(currentUser.uid, "Referral Claim Submitted ⏳", `Commission claim for $${commEarned.toFixed(2)} is awaiting review.`, "payment");
   };
@@ -724,29 +872,26 @@ export function useAppStore() {
     const sale = sales.find(s => s.id === id);
     if (!sale) return;
 
-    setSales(prev => prev.map(s => {
-      if (s.id === id) {
-        return {
-          ...s,
-          status: approve ? ("Completed" as const) : ("Rejected" as const),
-          rejectionReason
-        };
-      }
-      return s;
-    }));
+    const updatedSale: ProductReferralSale = {
+      ...sale,
+      status: approve ? "Completed" : "Rejected",
+      rejectionReason
+    };
+
+    setSales(prev => prev.map(s => s.id === id ? updatedSale : s));
+    setDoc(doc(db, 'sales', id), updatedSale).catch(e => console.error("Firestore process sale error:", e));
 
     if (approve) {
-      // Credit Referrer
-      setUsers(currentUsers => currentUsers.map(u => {
+      users.forEach(u => {
         if (u.uid === sale.referrerUid) {
-          return {
+          const updated = {
             ...u,
             referralBalance: u.referralBalance + sale.commissionEarned,
             referralRewardsEarned: u.referralRewardsEarned + sale.commissionEarned
           };
+          setDoc(doc(db, 'users', sale.referrerUid), updated).catch(e => console.error("Firestore credit affiliate error:", e));
         }
-        return u;
-      }));
+      });
       sendNotification(sale.referrerUid, "Affiliate Claim Approved! 💸", `Your commission claim for $${sale.commissionEarned.toFixed(2)} was approved and credited!`, "payment");
     } else {
       sendNotification(sale.referrerUid, "Affiliate Claim Rejected ❌", `Rejection reason: ${rejectionReason}`, "payment");
@@ -761,8 +906,9 @@ export function useAppStore() {
     adType: string, budget: number, ref: string
   ) => {
     if (!currentUser) return;
+    const id = "ad_" + Math.random().toString(36).substring(2);
     const newCampaign: AdCampaign = {
-      id: "ad_" + Math.random().toString(36).substring(2),
+      id,
       userId: currentUser.uid,
       userEmail: currentUser.email,
       title,
@@ -772,7 +918,7 @@ export function useAppStore() {
       destinationUrl: destUrl,
       category: "Elearning Promo",
       adType,
-      startDate: Date.now() + 2 * 24 * 60 * 60 * 1000, // starts in 2 days
+      startDate: Date.now() + 2 * 24 * 60 * 60 * 1000,
       endDate: Date.now() + 32 * 24 * 60 * 60 * 1000,
       status: "Pending Approval",
       budget,
@@ -788,6 +934,7 @@ export function useAppStore() {
     };
 
     setCampaigns(prev => [newCampaign, ...prev]);
+    setDoc(doc(db, 'campaigns', id), newCampaign).catch(e => console.error("Firestore campaign error:", e));
     logActivity(currentUser.uid, currentUser.email, "Campaign Launch", `Launched ad campaign: "${title}"`);
     sendNotification(currentUser.uid, "Ad Campaign Processing 📈", `Your ad "${title}" is pending receipt auditing.`, "payment");
   };
@@ -796,19 +943,16 @@ export function useAppStore() {
     const campaign = campaigns.find(c => c.id === id);
     if (!campaign) return;
 
-    setCampaigns(prev => prev.map(c => {
-      if (c.id === id) {
-        return {
-          ...c,
-          status: approve ? ("Active" as const) : ("Rejected" as const),
-          adminNotes: notes,
-          // seed simulated analytics immediately
-          viewsCount: approve ? Math.floor(500 + Math.random() * 2000) : 0,
-          clicksCount: approve ? Math.floor(40 + Math.random() * 150) : 0
-        };
-      }
-      return c;
-    }));
+    const updatedCampaign: AdCampaign = {
+      ...campaign,
+      status: approve ? "Active" : "Rejected",
+      adminNotes: notes,
+      viewsCount: approve ? Math.floor(500 + Math.random() * 2000) : 0,
+      clicksCount: approve ? Math.floor(40 + Math.random() * 150) : 0
+    };
+
+    setCampaigns(prev => prev.map(c => c.id === id ? updatedCampaign : c));
+    setDoc(doc(db, 'campaigns', id), updatedCampaign).catch(e => console.error("Firestore process campaign error:", e));
 
     if (approve) {
       sendNotification(campaign.userId, "Ad Campaign Active! 🚀", `Your advertisement campaign "${campaign.title}" has been verified and is now serving impressions!`, "info");
@@ -822,13 +966,15 @@ export function useAppStore() {
   // Save Settings
   const updateSettings = (settings: AdminSettings) => {
     setAdminSettings(settings);
+    setDoc(doc(db, 'adminSettings', 'global'), settings).catch(e => console.error("Firestore update settings error:", e));
     logActivity("admin", "Admin", "Settings Override", "Updated global platform administrative configurations.");
   };
 
   // Add Announcements
   const createAnnouncement = (title: string, content: string) => {
+    const id = "ann_" + Math.random().toString(36).substring(2);
     const newAnn: Announcement = {
-      id: "ann_" + Math.random().toString(36).substring(2),
+      id,
       title,
       content,
       timestamp: Date.now(),
@@ -836,6 +982,7 @@ export function useAppStore() {
       author: "Administrative Director"
     };
     setAnnouncements(prev => [newAnn, ...prev]);
+    setDoc(doc(db, 'announcements', id), newAnn).catch(e => console.error("Firestore announcement error:", e));
     logActivity("admin", "Admin", "Announcement", `Created platform announcement: "${title}"`);
     users.forEach(u => {
       sendNotification(u.uid, `Announcement: ${title}`, content.substring(0, 80) + "...", "announcement");

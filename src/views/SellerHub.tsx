@@ -400,40 +400,42 @@ export default function SellerHub({ currentUser, products, orders, registerSelle
 
             <form onSubmit={handleWithdrawal} className="space-y-4">
               <div>
-                <label className="block text-xs uppercase text-slate-500 font-semibold mb-1">Withdrawal Amount ($)</label>
+                <label className="block text-xs uppercase text-slate-500 font-semibold mb-1">Withdrawal Amount (₦)</label>
                 <input 
                   type="number" value={wAmount} onChange={e => setWAmount(Math.max(1, parseFloat(e.target.value) || 0))}
-                  className="block w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 text-sm"
+                  className="block w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
-                <span className="text-[10px] text-slate-500 mt-1 block">Maximum withdrawable: ${currentUser.sellerBalance.toLocaleString()}</span>
+                <span className="text-[10px] text-slate-500 mt-1 block">Available balance: ₦{currentUser.sellerBalance.toLocaleString()}</span>
               </div>
 
               <div>
                 <label className="block text-xs uppercase text-slate-500 font-semibold mb-1">Payout Channel</label>
                 <select
                   value={wMethod} onChange={e => setWMethod(e.target.value)}
-                  className="block w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 text-sm"
+                  className="block w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 text-sm focus:outline-none"
                 >
                   <option value="OPay Bank Transfer">OPay Direct Transfer</option>
-                  <option value="USDT Crypto TRC20">USDT Wallet (TRC-20)</option>
-                  <option value="PayPal Payment">PayPal Payout</option>
+                  <option value="Kuda Bank">Kuda Bank</option>
+                  <option value="Moniepoint">Moniepoint</option>
+                  <option value="Palmpay">Palmpay</option>
+                  <option value="Commercial Bank Transfer">Commercial Bank Transfer</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs uppercase text-slate-500 font-semibold mb-1">Receiving Destination details</label>
+                <label className="block text-xs uppercase text-slate-500 font-semibold mb-1">Your Receiving Account Details</label>
                 <input 
                   type="text" value={wDetails} onChange={e => setWDetails(e.target.value)}
-                  placeholder="Account Number or USDT Address..."
-                  className="block w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 text-sm"
+                  placeholder="Bank Name, Account Number, Account Name (e.g. OPay - 9162072645 - Chizaram w Amajor)"
+                  className="block w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all shadow-md focus:outline-none"
+                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all shadow-md focus:outline-none cursor-pointer"
               >
-                File Withdrawal Claim
+                Submit Withdrawal Claim
               </button>
             </form>
           </div>

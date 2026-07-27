@@ -372,7 +372,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   isTimerEnabled: true,
   bankName: "OPay",
   accountNumber: "9162072645",
-  accountName: "Chizaram W. Amajor",
+  accountName: "Chizaram w Amajor",
   siteName: "Wealth Builder",
   siteDescription: "Build Legitimate Wealth. Learn scalable systems.",
   websiteLogoUrl: "",

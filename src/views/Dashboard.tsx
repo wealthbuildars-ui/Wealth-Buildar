@@ -32,7 +32,7 @@ export default function Dashboard({
   const [ticketSuccess, setTicketSuccess] = useState('');
 
   // Withdrawal States
-  const [withdrawAmount, setWithdrawAmount] = useState(50);
+  const [withdrawAmount, setWithdrawAmount] = useState(1000);
   const [withdrawMethod, setWithdrawMethod] = useState('OPay Bank Transfer');
   const [withdrawDetails, setWithdrawDetails] = useState('');
   const [withdrawError, setWithdrawError] = useState('');
@@ -241,40 +241,42 @@ export default function Dashboard({
 
           <form onSubmit={handleWithdrawal} className="space-y-4 text-xs">
             <div>
-              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Amount ($)</label>
+              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Payout Amount (₦)</label>
               <input 
                 type="number" value={withdrawAmount} onChange={e => setWithdrawAmount(Math.max(1, parseFloat(e.target.value) || 0))}
                 className="block w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
-              <span className="text-[10px] text-slate-500 mt-1 block">Withdrawable: ${currentUser.referralBalance.toLocaleString()}</span>
+              <span className="text-[10px] text-slate-500 mt-1 block">Available Balance: ₦{currentUser.referralBalance.toLocaleString()}</span>
             </div>
 
             <div>
-              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Payout Provider Channel</label>
+              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Payout Method / Channel</label>
               <select
                 value={withdrawMethod} onChange={e => setWithdrawMethod(e.target.value)}
                 className="block w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 text-xs focus:outline-none"
               >
-                <option value="OPay Bank Transfer">OPay Bank Transfer</option>
-                <option value="PayPal Payout">PayPal Payout</option>
-                <option value="USDT TRC20 Crypto">USDT TRC-20 Wallet</option>
+                <option value="OPay Direct Transfer">OPay Direct Transfer</option>
+                <option value="Kuda Bank">Kuda Bank</option>
+                <option value="Moniepoint">Moniepoint</option>
+                <option value="Palmpay">Palmpay</option>
+                <option value="Commercial Bank Transfer">Commercial Bank Transfer (GTB, Zenith, FirstBank, Access)</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Receiving Target Account / Wallet</label>
+              <label className="block text-slate-500 font-semibold uppercase tracking-wider mb-1">Your Receiving Account Details</label>
               <input 
                 type="text" value={withdrawDetails} onChange={e => setWithdrawDetails(e.target.value)}
-                placeholder="OPay Account Number or USDT address..."
+                placeholder="Bank Name, Account Number, Account Name (e.g. OPay - 9162072645 - Chizaram w Amajor)"
                 className="block w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all shadow-md focus:outline-none"
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all shadow-md focus:outline-none cursor-pointer"
             >
-              File Withdrawal Request
+              Submit Withdrawal Request
             </button>
           </form>
         </div>

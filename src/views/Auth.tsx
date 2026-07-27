@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { Mail, User, Key, HelpCircle, ArrowRight, Wallet, Shield } from 'lucide-react';
 
 interface AuthProps {
-  login: (email: string) => { success: boolean; message: string };
+  login: (email: string, password?: string) => { success: boolean; message: string };
   signup: (email: string, name: string, referredBy?: string) => { success: boolean; message: string };
 }
 
 export default function Auth({ login, signup }: AuthProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [referredBy, setReferredBy] = useState('');
   const [error, setError] = useState('');
@@ -25,7 +26,7 @@ export default function Auth({ login, signup }: AuthProps) {
     }
 
     if (isLogin) {
-      const res = login(email);
+      const res = login(email, password);
       if (!res.success) {
         setError(res.message);
       } else {
@@ -48,7 +49,11 @@ export default function Auth({ login, signup }: AuthProps) {
   // Quick login helper
   const handleQuickLogin = (demoEmail: string) => {
     setEmail(demoEmail);
-    const res = login(demoEmail);
+    const pass = (demoEmail === 'wealthbuilder@gmail.com' || demoEmail === 'chizaramamajorchizaram@gmail.com')
+      ? 'Chizzywealth1906'
+      : '';
+    setPassword(pass);
+    const res = login(demoEmail, pass);
     if (!res.success) {
       setError(res.message);
     } else {
@@ -141,6 +146,26 @@ export default function Auth({ login, signup }: AuthProps) {
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full pl-10 pr-3 py-3 bg-slate-950/60 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-slate-100 placeholder-slate-500 text-sm transition-all"
                   placeholder="name@example.com"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-slate-300 flex justify-between items-center">
+                <span>Password</span>
+                {isLogin && <span className="text-xs text-amber-400 font-medium font-mono">(Admin requires password)</span>}
+              </label>
+              <div className="mt-1 relative rounded-md shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                  <Key className="w-5 h-5" />
+                </div>
+                <input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-3 bg-slate-950/60 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-slate-100 placeholder-slate-500 text-sm transition-all"
+                  placeholder="••••••••••••"
                 />
               </div>
             </div>
